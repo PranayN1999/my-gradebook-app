@@ -2,6 +2,7 @@ export default {
   expo: {
     name: "my-gradebook-app",
     slug: "my-gradebook-app",
+    scheme: "my-gradebook-app",
     version: "1.0.0",
     extra: {
       firebaseApiKey: process.env.FIREBASE_API_KEY,
