@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useContext } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase.config';
+import { GradebookContext } from './../GradebookContext';
 
 export default function FirebaseFetcher({ refreshKey }) {
   const [students, setStudents] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const { calculateGrade } = useContext(GradebookContext);
 
   const fetchData = async () => {
     try {
@@ -48,7 +50,7 @@ export default function FirebaseFetcher({ refreshKey }) {
         <View key={student.id} style={styles.studentContainer}>
           <Text style={styles.studentText}>Name: {student.name}</Text>
           <Text style={styles.studentText}>Email: {student.email}</Text>
-          <Text style={styles.studentText}>Grade: {student.grade}</Text>
+          <Text style={styles.studentText}>Grade: {calculateGrade(student.marks)}</Text>
         </View>
       ))}
     </ScrollView>

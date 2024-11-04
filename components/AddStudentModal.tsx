@@ -12,19 +12,19 @@ type AddStudentModalProps = {
 export default function AddStudentModal({ visible, onClose, onStudentAdded }: AddStudentModalProps) {
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentEmail, setNewStudentEmail] = useState('');
-  const [newStudentGrade, setNewStudentGrade] = useState('');
+  const [newStudentMarks, setNewStudentMarks] = useState('');
 
   const handleAddStudent = async () => {
-    if (newStudentName && newStudentEmail && newStudentGrade) {
+    if (newStudentName && newStudentEmail && newStudentMarks) {
       try {
         await addDoc(collection(db, 'students'), {
           name: newStudentName,
           email: newStudentEmail,
-          grade: newStudentGrade
+          marks: newStudentMarks
         });
         setNewStudentName('');
         setNewStudentEmail('');
-        setNewStudentGrade('');
+        setNewStudentMarks('');
         onStudentAdded();
         onClose();
       } catch (e) {
@@ -52,9 +52,9 @@ export default function AddStudentModal({ visible, onClose, onStudentAdded }: Ad
           />
           <TextInput
             style={styles.input}
-            placeholder="Grade"
-            value={newStudentGrade}
-            onChangeText={setNewStudentGrade}
+            placeholder="Marks"
+            value={newStudentMarks}
+            onChangeText={setNewStudentMarks}
           />
           <Button title="Add Student" onPress={handleAddStudent} />
           <Pressable style={styles.cancelButton} onPress={onClose}>
