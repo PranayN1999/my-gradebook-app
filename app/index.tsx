@@ -1,14 +1,21 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { Link } from 'expo-router';
 import FirebaseFetcher from '../components/FirebaseFetcher';
 import AddStudentModal from '../components/AddStudentModal';
 import AddThresholdModal from '../components/AddThresholdModal';
+import GradeReviewReminderModal from '../components/GradeReviewReminderModal';
+import { requestNotificationPermissions } from '../notifications';
 
 export default function Index() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editGradesThresholdModalVisible, setEditGradesThresholdModalVisible] = useState(false);
+  const [reminderModalVisible, setReminderModalVisible] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    requestNotificationPermissions();
+  }, []);
 
   const handleStudentAdded = () => {
     setRefreshKey((prevKey) => prevKey + 1);
@@ -28,11 +35,15 @@ export default function Index() {
         <TouchableOpacity style={[styles.button, styles.addButton]} onPress={() => setModalVisible(true)}>
           <Text style={styles.buttonText}>Add User</Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity style={[styles.button, styles.editButton]} onPress={() => setEditGradesThresholdModalVisible(true)}>
           <Text style={styles.buttonText}>Edit Grade Thresholds</Text>
         </TouchableOpacity>
-        
+
+        <TouchableOpacity style={[styles.button, styles.reminderButton]} onPress={() => setReminderModalVisible(true)}>
+          <Text style={styles.buttonText}>Schedule Grade Review Reminder</Text>
+        </TouchableOpacity>
+
         <Link href="/GradebookScreen" style={[styles.button, styles.gradebookButton]}>
           <Text style={styles.buttonText}>Go to Gradebook</Text>
         </Link>
@@ -47,6 +58,11 @@ export default function Index() {
       <AddThresholdModal
         visible={editGradesThresholdModalVisible}
         onClose={() => setEditGradesThresholdModalVisible(false)}
+      />
+
+      <GradeReviewReminderModal
+        visible={reminderModalVisible}
+        onClose={() => setReminderModalVisible(false)}
       />
     </View>
   );
@@ -98,7 +114,7 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     borderRadius: 10,
     alignItems: 'center',
-    justifyContent: 'center',  // Center text vertically within the button
+    justifyContent: 'center',
   },
   addButton: {
     backgroundColor: '#6bcf63',
@@ -106,17 +122,17 @@ const styles = StyleSheet.create({
   editButton: {
     backgroundColor: '#ffab40',
   },
+  reminderButton: {
+    backgroundColor: '#5da8f9',
+  },
   gradebookButton: {
     backgroundColor: '#5da8f9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    textAlign: 'center', // Ensures the text is centered within the link
   },
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
-    textAlign: 'center',  // Center text horizontally within the Text component
   },
 });
 
+export default Index;
