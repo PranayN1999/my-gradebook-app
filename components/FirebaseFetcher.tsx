@@ -4,12 +4,13 @@ import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase.config';
 import { GradebookContext } from './../GradebookContext';
 import { FontAwesome } from '@expo/vector-icons';
+import { sendNotification } from './../notifications';
 
 export default function FirebaseFetcher({ refreshKey }) {
   const [students, setStudents] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
-  const { calculateGrade } = useContext(GradebookContext);
+  const { thresholds, calculateGrade } = useContext(GradebookContext);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -31,9 +32,32 @@ export default function FirebaseFetcher({ refreshKey }) {
   const updateStudentMarks = async (studentId: string, newMarks: string) => {
     try {
       const studentDocRef = doc(db, 'students', studentId);
+      const oldStudentData = students.find((student) => student.id === studentId);
+      const oldGrade = oldStudentData ? calculateGrade(oldStudentData.marks) : null;
+  
       await updateDoc(studentDocRef, { marks: parseFloat(newMarks) });
-      setModalVisible(false);
       fetchData();
+  
+      const newGrade = calculateGrade(parseFloat(newMarks));
+  
+      if (oldGrade && oldGrade !== newGrade) {
+        await sendNotification(
+          'Grade Updated',
+          `The grade for ${oldStudentData.name} has been updated to ${newGrade}`
+        );
+      }
+  
+      for (const [grade, threshold] of Object.entries(thresholds)) {
+        if (oldStudentData.marks < threshold && parseFloat(newMarks) >= threshold) {
+          await sendNotification(
+            'Threshold Crossed! 🎉',
+            `${oldStudentData.name} has crossed the ${grade} grade threshold!`
+          );
+          break;
+        }
+      }
+  
+      setModalVisible(false);
     } catch (error) {
       console.error('Error updating student marks:', error);
     }
