@@ -5,8 +5,8 @@ import { GradebookContext } from './../GradebookContext';
 export default function RootLayout() {
   const [thresholds, setThresholds] = useState({
     "A+": 98,
-    "A": 97.5,
-    "B+": 91,
+    "A": 92.5,
+    "B+": 89.9,
     "B": 85,
     "C+": 81,
     "C": 75,
