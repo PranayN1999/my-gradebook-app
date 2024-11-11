@@ -3,111 +3,124 @@ import { Platform, Alert } from 'react-native';
 import Constants from 'expo-constants';
 import { Router } from 'expo-router';
 
-// Set the handler for notifications when the app is in the foreground
+// Set up the handler for notifications when the app is in the foreground
 Notifications.setNotificationHandler({
+  // Configure how notifications behave when they are received while the app is open
   handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
+    shouldShowAlert: true, // Display the notification as an alert
+    shouldPlaySound: true, // Play the notification sound
+    shouldSetBadge: false, // Do not update the app icon badge
   }),
 });
 
-// Function to request notification permissions
+// Function to request permissions for notifications
 export const requestNotificationPermissions = async (): Promise<boolean> => {
-  // Check if the device is a physical device
+  // Check if notifications are being requested on a physical device
   if (!Constants.isDevice) {
     Alert.alert('Notifications only work on physical devices.');
     return false;
   }
 
+  // Check the current permission status
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
 
-  // If permissions are not already granted, request them
+  // If permissions are not already granted, prompt the user to allow them
   if (existingStatus !== 'granted') {
     Alert.alert(
       'Permission Required',
       'We need your permission to send you notifications.',
-      [{ text: 'OK' }],
+      [{ text: 'OK' }]
     );
 
+    // Request permissions from the user
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
   }
 
-  // Handle permission denial
+  // If permission is denied, show an alert and return false
   if (finalStatus !== 'granted') {
     Alert.alert(
       'Permission Denied',
       'You will not receive notifications.',
-      [{ text: 'OK' }],
+      [{ text: 'OK' }]
     );
     return false;
   }
 
-  return true;
+  return true; // Permission granted
 };
 
-// Function to send immediate notifications
+// Function to send an immediate notification
 export const sendNotification = async (
   title: string,
   body: string,
-  data?: any,
+  data?: any
 ) => {
   await Notifications.scheduleNotificationAsync({
-    content: { title, body, data, sound: getSound() },
-    trigger: null,
+    content: {
+      title,
+      body,
+      data,
+      sound: getSound(), // Set sound based on platform
+    },
+    trigger: null, // Trigger immediately
   });
 };
 
-// Function to schedule notifications for a specific date and time
+// Function to schedule a notification for a specific date and time
 export const scheduleNotification = async (
   title: string,
   body: string,
   date: Date,
-  data?: any,
+  data?: any
 ) => {
   await Notifications.scheduleNotificationAsync({
-    content: { title, body, data, sound: getSound() },
-    trigger: { date },
+    content: {
+      title,
+      body,
+      data,
+      sound: getSound(), // Set sound based on platform
+    },
+    trigger: { date }, // Schedule for the specified date and time
   });
 };
 
-// Helper function to get the correct sound setting based on the platform
+// Helper function to determine the correct sound to use based on the platform
 const getSound = () => {
   if (Platform.OS === 'android') {
-    return 'default'; // For custom sounds on Android, the sound file must be in the app's res/raw directory
+    return 'default'; // Use default sound for Android
   } else {
-    return 'default'; // For custom sounds on iOS, the sound file must be included in the app bundle
+    return 'default'; // Use default sound for iOS
   }
 };
 
-// Set up notification channels for Android (required for custom sounds and importance levels)
+// Set up notification channels for Android to handle sound and priority
 if (Platform.OS === 'android') {
   Notifications.setNotificationChannelAsync('default', {
     name: 'default',
-    importance: Notifications.AndroidImportance.MAX,
-    sound: 'default', // Replace 'default' with your custom sound file name if applicable
+    importance: Notifications.AndroidImportance.MAX, // High priority notifications
+    sound: 'default', // Use the default notification sound
   });
 }
 
-// Listener for when a notification is received while the app is in the foreground
+// Listener for notifications received while the app is in the foreground
 Notifications.addNotificationReceivedListener((notification) => {
-  // You can handle notification data here if needed
-  // For example, update your notification history or state
+  // This function is triggered when a notification is received while the app is active
+  // Optional: Handle notification data, update state, or show custom alerts
 });
 
-// Listener for when a user interacts with a notification (e.g., taps on it)
+// Listener for when a user interacts with a notification (e.g., taps it)
 Notifications.addNotificationResponseReceivedListener((response) => {
   const data = response.notification.request.content.data;
 
+  // If the notification has a "screen" parameter, navigate to that screen
   if (data && data.screen) {
-    // Use Router from expo-router to navigate
     Router.push(data.screen);
   }
 });
 
-// Optionally, you can remove the listeners when they are no longer needed
+// Function to remove all notification listeners (cleanup)
 export const removeNotificationListeners = () => {
   Notifications.removeAllNotificationListeners();
 };

@@ -8,24 +8,33 @@ import GradeReviewReminderModal from '../components/GradeReviewReminderModal';
 import SettingsModal from '../components/SettingsModal';
 import { UserPreferencesContext } from '../UserPreferencesContext';
 
+// Main component to display the index screen with various features
 export default function Index() {
+  // State for managing visibility of different modals
   const [modalVisible, setModalVisible] = useState(false);
   const [editGradesThresholdModalVisible, setEditGradesThresholdModalVisible] = useState(false);
   const [reminderModalVisible, setReminderModalVisible] = useState(false);
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const navigation = useNavigation();
+  // Access user preferences from context
   const { preferences } = useContext(UserPreferencesContext);
 
+  // Navigation object to handle screen transitions
+  const navigation = useNavigation();
+
+  // Function to refresh the student list when a student is added
   const handleStudentAdded = () => {
     setRefreshKey((prevKey) => prevKey + 1);
   };
 
+  // Function to handle scheduling grade review reminders
   const handleScheduleReminder = () => {
+    // Check if reminders are enabled in user preferences
     if (preferences.gradeReviewReminders) {
       setReminderModalVisible(true);
     } else {
+      // Show alert if reminders are disabled
       Alert.alert(
         'Reminders Disabled',
         'Grade Review Reminders are disabled in your settings. Please enable them to schedule a reminder.',
@@ -37,18 +46,23 @@ export default function Index() {
 
   return (
     <View style={styles.container}>
+      {/* Header Text */}
       <Text style={styles.headerText}>Student List</Text>
 
+      {/* Container for displaying the list of students */}
       <View style={styles.fixedContainer}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          {/* Component to fetch and display students data */}
           <FirebaseFetcher refreshKey={refreshKey} />
         </ScrollView>
       </View>
 
+      {/* Button group for various actions */}
       <ScrollView contentContainerStyle={styles.buttonGroup}>
+        {/* Button to open the modal for adding a student */}
         <TouchableOpacity
           style={[styles.button, styles.addButton]}
           onPress={() => setModalVisible(true)}
@@ -56,6 +70,7 @@ export default function Index() {
           <Text style={styles.buttonText}>Add Student</Text>
         </TouchableOpacity>
 
+        {/* Button to open the modal for editing grade thresholds */}
         <TouchableOpacity
           style={[styles.button, styles.editButton]}
           onPress={() => setEditGradesThresholdModalVisible(true)}
@@ -63,6 +78,7 @@ export default function Index() {
           <Text style={styles.buttonText}>Edit Grade Thresholds</Text>
         </TouchableOpacity>
 
+        {/* Button to schedule a grade review reminder */}
         <TouchableOpacity
           style={[
             styles.button,
@@ -75,10 +91,12 @@ export default function Index() {
           <Text style={styles.buttonText}>Schedule Grade Review Reminder</Text>
         </TouchableOpacity>
 
+        {/* Link to navigate to the Gradebook screen */}
         <Link href="/GradebookScreen" style={[styles.button, styles.gradebookButton]}>
           <Text style={styles.buttonText}>Go to Gradebook</Text>
         </Link>
 
+        {/* Button to open the settings modal */}
         <TouchableOpacity
           style={[styles.button, styles.settingsButton]}
           onPress={() => setSettingsModalVisible(true)}
@@ -86,6 +104,7 @@ export default function Index() {
           <Text style={styles.buttonText}>Settings</Text>
         </TouchableOpacity>
 
+        {/* Button to navigate to Notification History screen */}
         <TouchableOpacity
           style={[styles.button, styles.historyButton]}
           onPress={() => navigation.navigate('NotificationHistory')}
@@ -94,7 +113,7 @@ export default function Index() {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Modals */}
+      {/* Modal components for adding students, editing thresholds, scheduling reminders, and settings */}
       <AddStudentModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
@@ -119,6 +138,7 @@ export default function Index() {
   );
 }
 
+// Styles for the components
 const styles = StyleSheet.create({
   container: {
     flex: 1,
