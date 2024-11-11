@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Modal, TextInput, TouchableOpacity } from 'react-native';
 import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase.config';
@@ -15,6 +15,8 @@ export default function FirebaseFetcher({ refreshKey }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [newMarks, setNewMarks] = useState('');
+  const [previousClassAverage, setPreviousClassAverage] = useState(0);
+  const isFirstFetch = useRef(true);
 
   const fetchData = async () => {
     try {
@@ -24,29 +26,61 @@ export default function FirebaseFetcher({ refreshKey }) {
         studentData.push({ id: doc.id, ...doc.data() });
       });
       setStudents(studentData);
+
+      if (isFirstFetch.current && studentData.length > 0) {
+        const initialAverage = calculateClassAverage(studentData.map((student) => student.marks));
+        setPreviousClassAverage(initialAverage);
+        isFirstFetch.current = false;
+      }
     } catch (err) {
-      setError(err.message || "Error fetching data");
+      setError(err.message || 'Error fetching data');
     }
   };
 
-  const updateStudentMarks = async (studentId: string, newMarks: string) => {
+  const calculateClassAverage = (marks) => {
+    if (marks.length === 0) return 0;
+    const totalMarks = marks.reduce((acc, mark) => acc + mark, 0);
+    return totalMarks / marks.length;
+  };
+
+  const handleClassAverageChange = async (oldAverage, newAverage) => {
+    const difference = Math.abs(newAverage - oldAverage);
+    if (difference >= 5) {
+      await sendNotification(
+        'Class Average Updated',
+        `The class average has changed by ${difference.toFixed(1)}%!`
+      );
+      setPreviousClassAverage(newAverage);
+    }
+  };
+
+  const updateStudentMarks = async (studentId, newMarks) => {
     try {
       const studentDocRef = doc(db, 'students', studentId);
       const oldStudentData = students.find((student) => student.id === studentId);
       const oldGrade = oldStudentData ? calculateGrade(oldStudentData.marks) : null;
-  
+
+      const oldClassAverage = calculateClassAverage(students.map((student) => student.marks));
+
       await updateDoc(studentDocRef, { marks: parseFloat(newMarks) });
-      fetchData();
-  
+
+      const updatedStudents = students.map((student) => {
+        if (student.id === studentId) {
+          return { ...student, marks: parseFloat(newMarks) };
+        }
+        return student;
+      });
+      setStudents(updatedStudents);
+
       const newGrade = calculateGrade(parseFloat(newMarks));
-  
+
       if (oldGrade && oldGrade !== newGrade) {
         await sendNotification(
           'Grade Updated',
           `The grade for ${oldStudentData.name} has been updated to ${newGrade}`
         );
       }
-  
+
       for (const [grade, threshold] of Object.entries(thresholds)) {
         if (oldStudentData.marks < threshold && parseFloat(newMarks) >= threshold) {
           await sendNotification(
@@ -56,7 +90,10 @@ export default function FirebaseFetcher({ refreshKey }) {
           break;
         }
       }
-  
+
+      const newClassAverage = calculateClassAverage(updatedStudents.map((student) => student.marks));
+      handleClassAverageChange(oldClassAverage, newClassAverage);
+
       setModalVisible(false);
     } catch (error) {
       console.error('Error updating student marks:', error);
@@ -78,7 +115,10 @@ export default function FirebaseFetcher({ refreshKey }) {
   };
 
   useEffect(() => {
-    fetchData();
+    const initializeData = async () => {
+      await fetchData();
+    };
+    initializeData();
   }, [refreshKey]);
 
   const onRefresh = async () => {
@@ -107,7 +147,7 @@ export default function FirebaseFetcher({ refreshKey }) {
             <Text style={styles.studentText}>Email: {student.email}</Text>
             <Text style={styles.studentText}>Marks: {student.marks}</Text>
             <Text style={styles.studentText}>Grade: {calculateGrade(student.marks)}</Text>
-            
+
             <TouchableOpacity onPress={() => handleEditStudent(student)} style={styles.updateButton}>
               <FontAwesome name="pencil" size={18} color="#fff" style={{ marginRight: 8 }} />
               <Text style={styles.updateButtonText}>Edit Marks</Text>
