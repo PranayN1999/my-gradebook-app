@@ -1,6 +1,9 @@
-import { useState } from 'react';
-import { Stack } from "expo-router";
+import React, { useEffect, useState } from 'react';
+import { Stack } from 'expo-router';
 import { GradebookContext } from './../GradebookContext';
+import { UserPreferencesProvider } from '../UserPreferencesContext';
+import { NotificationProvider } from '../NotificationContext';
+import { requestNotificationPermissions } from '../notifications';
 
 export default function RootLayout() {
   const [thresholds, setThresholds] = useState({
@@ -22,11 +25,29 @@ export default function RootLayout() {
     return "F";
   };
 
+  // Request notification permissions on app startup
+  useEffect(() => {
+    const getPermissions = async () => {
+      const granted = await requestNotificationPermissions();
+      if (!granted) {
+        // Handle the case when permissions are not granted
+        console.log("Notification permission not given")
+      }
+    };
+    getPermissions();
+  }, []);
+
   return (
     <GradebookContext.Provider value={{ thresholds, setThresholds, calculateGrade }}>
-      <Stack>
-        <Stack.Screen name="index" />
-      </Stack>
+      <UserPreferencesProvider>
+        <NotificationProvider>
+          <Stack>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="GradebookScreen" />
+            <Stack.Screen name="NotificationHistory" />
+          </Stack>
+        </NotificationProvider>
+      </UserPreferencesProvider>
     </GradebookContext.Provider>
   );
 }
