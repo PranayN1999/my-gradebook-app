@@ -1,54 +1,100 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { Link } from 'expo-router';
+import React, { useState, useContext } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import { Link, useNavigation } from 'expo-router';
 import FirebaseFetcher from '../components/FirebaseFetcher';
 import AddStudentModal from '../components/AddStudentModal';
 import AddThresholdModal from '../components/AddThresholdModal';
 import GradeReviewReminderModal from '../components/GradeReviewReminderModal';
-import { requestNotificationPermissions } from '../notifications';
+import SettingsModal from '../components/SettingsModal';
+import { UserPreferencesContext } from '../UserPreferencesContext';
 
 export default function Index() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editGradesThresholdModalVisible, setEditGradesThresholdModalVisible] = useState(false);
   const [reminderModalVisible, setReminderModalVisible] = useState(false);
+  const [settingsModalVisible, setSettingsModalVisible] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  useEffect(() => {
-    requestNotificationPermissions();
-  }, []);
+  const navigation = useNavigation();
+  const { preferences } = useContext(UserPreferencesContext);
 
   const handleStudentAdded = () => {
     setRefreshKey((prevKey) => prevKey + 1);
   };
 
+  const handleScheduleReminder = () => {
+    if (preferences.gradeReviewReminders) {
+      setReminderModalVisible(true);
+    } else {
+      Alert.alert(
+        'Reminders Disabled',
+        'Grade Review Reminders are disabled in your settings. Please enable them to schedule a reminder.',
+        [{ text: 'OK' }],
+        { cancelable: true }
+      );
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.headerText}>Student List</Text>
-      
+
       <View style={styles.fixedContainer}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <FirebaseFetcher refreshKey={refreshKey} />
         </ScrollView>
       </View>
 
       <ScrollView contentContainerStyle={styles.buttonGroup}>
-        <TouchableOpacity style={[styles.button, styles.addButton]} onPress={() => setModalVisible(true)}>
-          <Text style={styles.buttonText}>Add User</Text>
+        <TouchableOpacity
+          style={[styles.button, styles.addButton]}
+          onPress={() => setModalVisible(true)}
+        >
+          <Text style={styles.buttonText}>Add Student</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.button, styles.editButton]} onPress={() => setEditGradesThresholdModalVisible(true)}>
+        <TouchableOpacity
+          style={[styles.button, styles.editButton]}
+          onPress={() => setEditGradesThresholdModalVisible(true)}
+        >
           <Text style={styles.buttonText}>Edit Grade Thresholds</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.button, styles.reminderButton]} onPress={() => setReminderModalVisible(true)}>
+        <TouchableOpacity
+          style={[
+            styles.button,
+            styles.reminderButton,
+            !preferences.gradeReviewReminders && styles.buttonDisabled,
+          ]}
+          onPress={handleScheduleReminder}
+          disabled={!preferences.gradeReviewReminders}
+        >
           <Text style={styles.buttonText}>Schedule Grade Review Reminder</Text>
         </TouchableOpacity>
 
         <Link href="/GradebookScreen" style={[styles.button, styles.gradebookButton]}>
           <Text style={styles.buttonText}>Go to Gradebook</Text>
         </Link>
+
+        <TouchableOpacity
+          style={[styles.button, styles.settingsButton]}
+          onPress={() => setSettingsModalVisible(true)}
+        >
+          <Text style={styles.buttonText}>Settings</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, styles.historyButton]}
+          onPress={() => navigation.navigate('NotificationHistory')}
+        >
+          <Text style={styles.buttonText}>Notification History</Text>
+        </TouchableOpacity>
       </ScrollView>
 
+      {/* Modals */}
       <AddStudentModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
@@ -63,6 +109,11 @@ export default function Index() {
       <GradeReviewReminderModal
         visible={reminderModalVisible}
         onClose={() => setReminderModalVisible(false)}
+      />
+
+      <SettingsModal
+        visible={settingsModalVisible}
+        onClose={() => setSettingsModalVisible(false)}
       />
     </View>
   );
@@ -128,11 +179,18 @@ const styles = StyleSheet.create({
   gradebookButton: {
     backgroundColor: '#5da8f9',
   },
+  settingsButton: {
+    backgroundColor: '#8e44ad',
+  },
+  historyButton: {
+    backgroundColor: '#34495e',
+  },
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
   },
+  buttonDisabled: {
+    backgroundColor: '#b0c4de',
+  },
 });
-
-export default Index;

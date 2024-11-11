@@ -1,22 +1,36 @@
 import React, { useEffect, useState, useContext, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Modal, TextInput, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  Modal,
+  TextInput,
+  TouchableOpacity,
+} from 'react-native';
 import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase.config';
 import { GradebookContext } from './../GradebookContext';
+import { UserPreferencesContext } from '../UserPreferencesContext';
 import { FontAwesome } from '@expo/vector-icons';
 import { sendNotification } from './../notifications';
+import { useRouter } from 'expo-router';
 
 export default function FirebaseFetcher({ refreshKey }) {
   const [students, setStudents] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const { thresholds, calculateGrade } = useContext(GradebookContext);
+  const { preferences } = useContext(UserPreferencesContext);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [newMarks, setNewMarks] = useState('');
   const [previousClassAverage, setPreviousClassAverage] = useState(0);
   const isFirstFetch = useRef(true);
+
+  const router = useRouter();
 
   const fetchData = async () => {
     try {
@@ -28,7 +42,9 @@ export default function FirebaseFetcher({ refreshKey }) {
       setStudents(studentData);
 
       if (isFirstFetch.current && studentData.length > 0) {
-        const initialAverage = calculateClassAverage(studentData.map((student) => student.marks));
+        const initialAverage = calculateClassAverage(
+          studentData.map((student) => student.marks)
+        );
         setPreviousClassAverage(initialAverage);
         isFirstFetch.current = false;
       }
@@ -46,10 +62,12 @@ export default function FirebaseFetcher({ refreshKey }) {
   const handleClassAverageChange = async (oldAverage, newAverage) => {
     const difference = Math.abs(newAverage - oldAverage);
     if (difference >= 5) {
-      await sendNotification(
-        'Class Average Updated',
-        `The class average has changed by ${difference.toFixed(1)}%!`
-      );
+      if (preferences.classAverageChanges) {
+        await sendNotification(
+          'Class Average Updated',
+          `The class average has changed by ${difference.toFixed(1)}%!`
+        );
+      }
       setPreviousClassAverage(newAverage);
     }
   };
@@ -60,7 +78,9 @@ export default function FirebaseFetcher({ refreshKey }) {
       const oldStudentData = students.find((student) => student.id === studentId);
       const oldGrade = oldStudentData ? calculateGrade(oldStudentData.marks) : null;
 
-      const oldClassAverage = calculateClassAverage(students.map((student) => student.marks));
+      const oldClassAverage = calculateClassAverage(
+        students.map((student) => student.marks)
+      );
 
       await updateDoc(studentDocRef, { marks: parseFloat(newMarks) });
 
@@ -75,24 +95,41 @@ export default function FirebaseFetcher({ refreshKey }) {
       const newGrade = calculateGrade(parseFloat(newMarks));
 
       if (oldGrade && oldGrade !== newGrade) {
-        await sendNotification(
-          'Grade Updated',
-          `The grade for ${oldStudentData.name} has been updated to ${newGrade}`
-        );
-      }
-
-      for (const [grade, threshold] of Object.entries(thresholds)) {
-        if (oldStudentData.marks < threshold && parseFloat(newMarks) >= threshold) {
+        if (preferences.gradeUpdates) {
           await sendNotification(
-            'Threshold Crossed! 🎉',
-            `${oldStudentData.name} has crossed the ${grade} grade threshold!`
+            'Grade Updated',
+            `The grade for ${oldStudentData.name} has been updated to ${newGrade}`,
+            {
+              screen: `/StudentDetails`,
+              params: { studentId: studentId },
+            }
           );
-          break;
         }
       }
 
-      const newClassAverage = calculateClassAverage(updatedStudents.map((student) => student.marks));
-      handleClassAverageChange(oldClassAverage, newClassAverage);
+      if (preferences.thresholdAlerts) {
+        for (const [grade, threshold] of Object.entries(thresholds)) {
+          if (
+            oldStudentData.marks < threshold &&
+            parseFloat(newMarks) >= threshold
+          ) {
+            await sendNotification(
+              'Threshold Crossed! 🎉',
+              `${oldStudentData.name} has crossed the ${grade} grade threshold!`,
+              {
+                screen: `/StudentDetails`,
+                params: { studentId: studentId },
+              }
+            );
+            break;
+          }
+        }
+      }
+
+      const newClassAverage = calculateClassAverage(
+        updatedStudents.map((student) => student.marks)
+      );
+      await handleClassAverageChange(oldClassAverage, newClassAverage);
 
       setModalVisible(false);
     } catch (error) {
@@ -142,17 +179,26 @@ export default function FirebaseFetcher({ refreshKey }) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {students.map((student) => (
-          <View key={student.id} style={styles.studentContainer}>
-            <Text style={styles.studentText}>Name: {student.name}</Text>
-            <Text style={styles.studentText}>Email: {student.email}</Text>
-            <Text style={styles.studentText}>Marks: {student.marks}</Text>
-            <Text style={styles.studentText}>Grade: {calculateGrade(student.marks)}</Text>
+          <TouchableOpacity
+            key={student.id}
+            style={styles.studentContainer}
+            onPress={() => router.push(`/StudentDetails?studentId=${student.id}`)}
+          >
+            <View>
+              <Text style={styles.studentText}>Name: {student.name}</Text>
+              <Text style={styles.studentText}>Email: {student.email}</Text>
+              <Text style={styles.studentText}>Marks: {student.marks}</Text>
+              <Text style={styles.studentText}>Grade: {calculateGrade(student.marks)}</Text>
+            </View>
 
-            <TouchableOpacity onPress={() => handleEditStudent(student)} style={styles.updateButton}>
+            <TouchableOpacity
+              onPress={() => handleEditStudent(student)}
+              style={styles.updateButton}
+            >
               <FontAwesome name="pencil" size={18} color="#fff" style={{ marginRight: 8 }} />
               <Text style={styles.updateButtonText}>Edit Marks</Text>
             </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         ))}
       </ScrollView>
 
@@ -160,7 +206,9 @@ export default function FirebaseFetcher({ refreshKey }) {
         <Modal visible={modalVisible} transparent={true} animationType="slide">
           <View style={styles.modalOverlay}>
             <View style={styles.modalContainer}>
-              <Text style={styles.modalTitle}>Edit Marks for {selectedStudent.name}</Text>
+              <Text style={styles.modalTitle}>
+                Edit Marks for {selectedStudent.name}
+              </Text>
               <TextInput
                 style={styles.input}
                 value={newMarks}
@@ -171,7 +219,10 @@ export default function FirebaseFetcher({ refreshKey }) {
               <TouchableOpacity onPress={handleUpdateMarks} style={styles.saveButton}>
                 <Text style={styles.saveButtonText}>Update Marks</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.cancelButton}>
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                style={styles.cancelButton}
+              >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
             </View>
@@ -196,6 +247,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     backgroundColor: '#fff',
     borderRadius: 8,
+    flexDirection: 'column', // Changed to column to accommodate the edit button
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
@@ -214,6 +266,7 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 5,
     marginTop: 10,
+    alignSelf: 'flex-end',
   },
   updateButtonText: {
     color: '#fff',
